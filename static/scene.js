@@ -55,6 +55,68 @@ scene.add(dome);
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
 scene.add(ambientLight);
 
+// Keyboard state tracking
+const keys = {
+    w: false,
+    a: false,
+    s: false,
+    d: false,
+    shift: false,
+    space: false
+};
+
+// Mouse look variables
+const euler = new THREE.Euler(0, 0, 0, 'YXZ');
+const PI_2 = Math.PI / 2;
+let isPointerLocked = false;
+
+// Movement speed
+const moveSpeed = 0.1;
+const lookSpeed = 0.002;
+
+// Keyboard event listeners
+document.addEventListener('keydown', (e) => {
+    const key = e.key.toLowerCase();
+    if (key === 'w') keys.w = true;
+    if (key === 'a') keys.a = true;
+    if (key === 's') keys.s = true;
+    if (key === 'd') keys.d = true;
+    if (key === 'shift') keys.shift = true;
+    if (key === ' ') keys.space = true;
+});
+
+document.addEventListener('keyup', (e) => {
+    const key = e.key.toLowerCase();
+    if (key === 'w') keys.w = false;
+    if (key === 'a') keys.a = false;
+    if (key === 's') keys.s = false;
+    if (key === 'd') keys.d = false;
+    if (key === 'shift') keys.shift = false;
+    if (key === ' ') keys.space = false;
+});
+
+// Pointer lock for mouse look
+document.addEventListener('click', () => {
+    document.body.requestPointerLock();
+});
+
+document.addEventListener('pointerlockchange', () => {
+    isPointerLocked = document.pointerLockElement === document.body;
+});
+
+document.addEventListener('mousemove', (e) => {
+    if (!isPointerLocked) return;
+
+    const movementX = e.movementX || 0;
+    const movementY = e.movementY || 0;
+
+    euler.setFromQuaternion(camera.quaternion);
+    euler.y -= movementX * lookSpeed;
+    euler.x -= movementY * lookSpeed;
+    euler.x = Math.max(-PI_2, Math.min(PI_2, euler.x));
+    camera.quaternion.setFromEuler(euler);
+});
+
 // Handle window resize
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -62,13 +124,36 @@ window.addEventListener('resize', () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// Animation loop with auto-rotation
+// Animation loop with camera movement
 function animate() {
     requestAnimationFrame(animate);
 
-    // Auto-rotate the dome
-    dome.rotation.y += 0.005;
-    dome.rotation.x += 0.002;
+    // Calculate movement direction based on camera rotation
+    const direction = new THREE.Vector3();
+    const right = new THREE.Vector3();
+
+    camera.getWorldDirection(direction);
+    right.crossVectors(camera.up, direction).normalize();
+
+    // Move camera based on keyboard input
+    if (keys.w) {
+        camera.position.addScaledVector(direction, moveSpeed);
+    }
+    if (keys.s) {
+        camera.position.addScaledVector(direction, -moveSpeed);
+    }
+    if (keys.a) {
+        camera.position.addScaledVector(right, moveSpeed);
+    }
+    if (keys.d) {
+        camera.position.addScaledVector(right, -moveSpeed);
+    }
+    if (keys.space) {
+        camera.position.y += moveSpeed;
+    }
+    if (keys.shift) {
+        camera.position.y -= moveSpeed;
+    }
 
     renderer.render(scene, camera);
 }
